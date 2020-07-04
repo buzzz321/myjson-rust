@@ -6,7 +6,7 @@ enum JType{
 }
 
 struct JSONValue{
-    strValue String
+    str_value: String
 }
 
 fn main() {
