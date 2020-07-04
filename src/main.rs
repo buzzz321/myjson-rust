@@ -4,9 +4,11 @@ enum JType{
 	JArray,
 	JObject
 }
+
 struct JSONValue{
     strValue String
 }
+
 fn main() {
     println!("Hello, world!");
 }
