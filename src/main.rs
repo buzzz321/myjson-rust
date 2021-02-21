@@ -1,16 +1,16 @@
-enum JType {
-    JString,
-    JNumber,
-    JArray,
-    JObject,
-}
-
-struct JSONValue {
-    jtype: JType,
-    strValue: String,
-    arr: Vec<JSONValue>,
-}
+mod myjson;
 
 fn main() {
     println!("Hello, world!");
+    myjson::hello();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::myjson;
+    #[test]
+    fn it_works() {
+        myjson::hello();
+        assert_eq!(2 + 2, 4);
+    }
 }
