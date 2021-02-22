@@ -7,23 +7,24 @@ pub enum JType {
 }
 
 #[derive(Debug)]
-pub struct JSONValue {
+pub struct JSONValue<'a> {
     jtype: JType,
-    str_value: &'static str,
-    arr: Vec<JSONValue>,
+    str_value: &'a str,
+    arr: Vec<JSONValue<'a>>,
 }
 trait Parser {
     fn consume_white_space(&mut self);
     fn get_data(&self) -> &str;
+    fn is_digit(&self,val: &str)->bool;
 }
 
 #[derive(Debug)]
-pub struct ParserData {
-    data: &'static str,
+pub struct ParserData<'a> {
+    data: &'a str,
     curr_pos: usize,
 }
 
-impl Parser for ParserData {
+impl <'a>Parser for ParserData<'a> {
     fn consume_white_space(&mut self) {
         for elem in self.data.chars().enumerate() {
             //println!("{} |{}|", self.curr_pos, elem.1);
@@ -37,7 +38,25 @@ impl Parser for ParserData {
         //println!("{} ", self.curr_pos);
         &self.data[self.curr_pos..self.curr_pos + 1]
     }
+
+    fn is_digit(&self,val: &str)->bool {
+        for elem in val.chars().enumerate(){
+            if elem.1 == '-'{
+                continue;
+            }
+            let isnum = elem.1 as i32-'0' as i32;
+            if isnum <=9 && isnum >=0{
+                return true;
+            }else
+            {
+               return false;
+            }
+        }
+        false
+    }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -64,6 +83,19 @@ mod tests {
         uat.consume_white_space();
         let ans = uat.get_data();
         assert_eq!(".", ans);
+    }
+
+    #[test]
+    fn is_digits() {
+        let uat = ParserData {
+            data: "0",
+            curr_pos: 0,
+        }; 
+        
+        assert_eq!(true,uat.is_digit("0"));
+        assert_eq!(true,uat.is_digit("9"));
+        assert_eq!(false,uat.is_digit("a"));
+        assert_eq!(true,uat.is_digit("-9"));
     }
 }
 
