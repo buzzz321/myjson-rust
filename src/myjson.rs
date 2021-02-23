@@ -14,6 +14,7 @@ pub struct JSONValue<'a> {
 }
 trait Parser {
     fn consume_white_space(&mut self);
+    fn consume(&mut self, token: &str)-> bool;
     fn get_data(&self) -> &str;
     fn is_digit(&self,val: &str)->bool;
 }
@@ -54,6 +55,19 @@ impl <'a>Parser for ParserData<'a> {
         }
         false
     }
+
+    fn consume(&mut self, token: &str) -> bool {
+        if token.is_char_boundary(0) != self.data.is_char_boundary(self.curr_pos) {
+            return false;
+        }
+        self.curr_pos += token.len();
+
+        if self.curr_pos> self.data.len() {
+            self.curr_pos = self.data.len() -1;
+        }
+
+        return true;
+    }
 }
 
 
@@ -83,6 +97,18 @@ mod tests {
         uat.consume_white_space();
         let ans = uat.get_data();
         assert_eq!(".", ans);
+    }
+
+    #[test]
+    fn consume_dot_test() {
+        let mut uat = ParserData {
+            data: ".#",
+            curr_pos: 0,
+        };
+
+        uat.consume(".");
+        let ans = uat.get_data();
+        assert_eq!("#", ans);
     }
 
     #[test]
