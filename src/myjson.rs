@@ -13,11 +13,11 @@ pub struct JSONValue<'a> {
     arr: Vec<JSONValue<'a>>,
 }
 trait Parser {
-    fn parse_qouted_string(&mut self) ->String;
+    fn parse_qouted_string(&mut self) -> String;
     fn consume_white_space(&mut self);
-    fn consume(&mut self, token: &str)-> bool;
+    fn consume(&mut self, token: &str) -> bool;
     fn get_data(&self) -> &str;
-    fn is_digit(&self,val: &str)->bool;
+    fn is_digit(&self, val: &str) -> bool;
 }
 
 pub struct ParserData<'a> {
@@ -25,37 +25,36 @@ pub struct ParserData<'a> {
     curr_pos: usize,
 }
 
-
-impl <'a>Parser for ParserData<'a> {
-     fn parse_qouted_string(&mut self) ->String {
+impl<'a> Parser for ParserData<'a> {
+    fn parse_qouted_string(&mut self) -> String {
         self.consume_white_space();
         let mut iter = self.data.char_indices();
 
         let first: (usize, char) = iter.next().unwrap();
-        if  first.1!= '"'{
+        if first.1 != '"' {
             return "".to_string();
         }
         let mut end_found = false;
-        let mut end_pos:usize = 0;
+        let mut end_pos: usize = 0;
         self.curr_pos += 1;
-        
-        for elem in iter{
+
+        for elem in iter {
             //println!("{}", elem.1);
-            if elem.1 == '"'{
+            if elem.1 == '"' {
                 end_found = true;
                 end_pos = elem.0;
                 break;
             }
         }
 
-        if end_found{
+        if end_found {
             let ret_val = self.data[self.curr_pos..end_pos].to_string();
             self.curr_pos += end_pos;
             return ret_val;
         }
-       return "".to_string()
+        return "".to_string();
     }
-    
+
     fn consume_white_space(&mut self) {
         for elem in self.data.chars().enumerate() {
             //println!("{} |{}|", self.curr_pos, elem.1);
@@ -67,13 +66,13 @@ impl <'a>Parser for ParserData<'a> {
     }
 
     fn consume(&mut self, token: &str) -> bool {
-        if token.chars().nth(0).unwrap() != self.data.chars().nth(self.curr_pos).unwrap() {              
+        if token.chars().nth(0).unwrap() != self.data.chars().nth(self.curr_pos).unwrap() {
             return false;
         }
         self.curr_pos += token.len();
 
-        if self.curr_pos> self.data.len() {
-            self.curr_pos = self.data.len() -1;
+        if self.curr_pos > self.data.len() {
+            self.curr_pos = self.data.len() - 1;
         }
 
         return true;
@@ -84,24 +83,21 @@ impl <'a>Parser for ParserData<'a> {
         &self.data[self.curr_pos..self.curr_pos + 1]
     }
 
-    fn is_digit(&self,val: &str)->bool {
-        for elem in val.chars().enumerate(){
-            if elem.1 == '-'{
+    fn is_digit(&self, val: &str) -> bool {
+        for elem in val.chars().enumerate() {
+            if elem.1 == '-' {
                 continue;
             }
-            let isnum = elem.1 as i32-'0' as i32;
-            if isnum <=9 && isnum >=0{
+            let isnum = elem.1 as i32 - '0' as i32;
+            if isnum <= 9 && isnum >= 0 {
                 return true;
-            }else
-            {
-               return false;
+            } else {
+                return false;
             }
         }
         false
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -147,12 +143,12 @@ mod tests {
         let uat = ParserData {
             data: "0",
             curr_pos: 0,
-        }; 
-        
-        assert_eq!(true,uat.is_digit("0"));
-        assert_eq!(true,uat.is_digit("9"));
-        assert_eq!(false,uat.is_digit("a"));
-        assert_eq!(true,uat.is_digit("-9"));
+        };
+
+        assert_eq!(true, uat.is_digit("0"));
+        assert_eq!(true, uat.is_digit("9"));
+        assert_eq!(false, uat.is_digit("a"));
+        assert_eq!(true, uat.is_digit("-9"));
     }
 
     #[test]
@@ -163,7 +159,7 @@ mod tests {
         };
 
         let ans = uat.parse_qouted_string();
-        
+
         assert_eq!("key:", ans);
     }
 }
