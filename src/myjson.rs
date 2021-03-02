@@ -13,7 +13,7 @@ pub struct JSONValue<'a> {
     arr: Vec<JSONValue<'a>>,
 }
 trait Parser {
-    //fn parse_qouted_string(&mut self) ->&str;
+    fn parse_qouted_string(&mut self) ->String;
     fn consume_white_space(&mut self);
     fn consume(&mut self, token: &str)-> bool;
     fn get_data(&self) -> &str;
@@ -27,18 +27,35 @@ pub struct ParserData<'a> {
 
 
 impl <'a>Parser for ParserData<'a> {
-  /*   fn parse_qouted_string(&mut self) ->&str {
+     fn parse_qouted_string(&mut self) ->String {
         self.consume_white_space();
+        let mut iter = self.data.char_indices();
 
-        if self.data.chars().nth(self.curr_pos) != Some('\"'){
-            return "";
+        let first: (usize, char) = iter.next().unwrap();
+        if  first.1!= '"'{
+            return "".to_string();
         }
         let mut end_found = false;
-        let mut start_pos = self.curr_pos;
-        let mut c1 = self.data.char_indices().peekable();
-        c1.skip(self.curr_pos);
+        let mut end_pos:usize = 0;
+        self.curr_pos += 1;
+        
+        for elem in iter{
+            //println!("{}", elem.1);
+            if elem.1 == '"'{
+                end_found = true;
+                end_pos = elem.0;
+                break;
+            }
+        }
+
+        if end_found{
+            let ret_val = self.data[self.curr_pos..end_pos].to_string();
+            self.curr_pos += end_pos;
+            return ret_val;
+        }
+       return "".to_string()
     }
-    */
+    
     fn consume_white_space(&mut self) {
         for elem in self.data.chars().enumerate() {
             //println!("{} |{}|", self.curr_pos, elem.1);
@@ -136,6 +153,18 @@ mod tests {
         assert_eq!(true,uat.is_digit("9"));
         assert_eq!(false,uat.is_digit("a"));
         assert_eq!(true,uat.is_digit("-9"));
+    }
+
+    #[test]
+    fn parse_key_test() {
+        let mut uat = ParserData {
+            data: "\"key:\": value",
+            curr_pos: 0,
+        };
+
+        let ans = uat.parse_qouted_string();
+        
+        assert_eq!("key:", ans);
     }
 }
 
