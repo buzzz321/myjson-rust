@@ -14,6 +14,7 @@ pub struct JSONValue<'a> {
 }
 trait Parser {
     fn parse_qouted_string(&mut self) -> String;
+    fn parse_number(&mut self) -> String;
     fn consume_white_space(&mut self);
     fn consume(&mut self, token: &str) -> bool;
     fn get_data(&self) -> &str;
@@ -97,6 +98,28 @@ impl<'a> Parser for ParserData<'a> {
         }
         false
     }
+
+    fn parse_number(&mut self) -> String {
+        self.consume_white_space();
+        let iter = self.data.char_indices();
+        let mut end_pos: usize = 0;
+        let mut found = false;
+
+        for elem in iter {
+            let tmp = elem.1;
+            if !tmp.is_numeric() && tmp != '-' && tmp != '.' {
+                end_pos = elem.0;
+                found = true;
+            }
+        }
+
+        if found {
+            let ret_val = self.data[self.curr_pos..end_pos].to_string();
+            self.curr_pos += end_pos;
+            return ret_val;
+        }
+        return "".to_string();
+    }
 }
 
 #[cfg(test)]
@@ -161,6 +184,17 @@ mod tests {
         let ans = uat.parse_qouted_string();
 
         assert_eq!("key:", ans);
+    }
+    #[test]
+    fn parse_number_test() {
+        let mut uat = ParserData {
+            data: " 123.45 ",
+            curr_pos: 0,
+        };
+
+        let ans = uat.parse_number();
+
+        assert_eq!("123.45", ans);
     }
 }
 
