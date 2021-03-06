@@ -6,13 +6,21 @@ pub enum JType {
     JObject,
 }
 
-#[derive(Debug)]
+impl Default for JType {
+    fn default() -> Self {
+        JType::JObject
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct JSONValue<'a> {
     jtype: JType,
     str_value: &'a str,
     arr: Vec<JSONValue<'a>>,
 }
+
 trait Parser {
+    fn parse_array<'b>(&mut self) -> JSONValue<'b>;
     fn parse_qouted_string(&mut self) -> String;
     fn parse_number(&mut self) -> String;
     fn consume_white_space(&mut self);
@@ -119,6 +127,14 @@ impl<'a> Parser for ParserData<'a> {
             return ret_val;
         }
         return "".to_string();
+    }
+
+    fn parse_array<'b>(&mut self) -> JSONValue<'b> {
+        let ret_val = JSONValue {
+            ..Default::default()
+        };
+
+        return ret_val;
     }
 }
 
