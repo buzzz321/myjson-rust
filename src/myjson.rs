@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use std::borrow::Cow;
+
+#[derive(Debug, Clone)]
 pub enum JType {
     JString,
     JNumber,
@@ -12,17 +14,20 @@ impl Default for JType {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct JSONValue<'a> {
-    jtype: JType,
-    str_value: &'a str,
-    arr: Vec<JSONValue<'a>>,
+    pub jtype: JType,
+    pub str_key: Cow<'a, str>,
+    pub str_value: Cow<'a, str>,
+    pub arr: Vec<Box<JSONValue<'a>>>,
 }
 
 trait Parser {
-    fn parse_array<'b>(&mut self) -> JSONValue<'b>;
+    fn parse_array(&mut self) -> Box<JSONValue>;
+    fn parse_value(&mut self) -> Box<JSONValue>;
     fn parse_qouted_string(&mut self) -> String;
     fn parse_number(&mut self) -> String;
+    fn peek(&self, token: &str, ahead: usize) -> bool;
     fn consume_white_space(&mut self);
     fn consume(&mut self, token: &str) -> bool;
     fn get_data(&self) -> &str;
@@ -35,6 +40,52 @@ pub struct ParserData<'a> {
 }
 
 impl<'a> Parser for ParserData<'a> {
+    fn parse_array(&mut self) -> Box<JSONValue> {
+        /*
+        "key" : [1, 2 , 3, 4]
+        */
+        let mut ret_val = JSONValue {
+            ..Default::default()
+        };
+
+        ret_val.jtype = JType::JArray;
+        self.consume_white_space();
+        ret_val.str_key = Cow::Owned(self.parse_qouted_string());
+        self.consume_white_space();
+        self.consume(":");
+        self.consume_white_space();
+
+        if !self.consume("[") {
+            return Box::new(ret_val);
+        }
+
+        self.consume_white_space();
+
+        while !self.peek("]", 0) {
+            self.parse_value();
+        }
+        Box::new(ret_val)
+    }
+
+    fn parse_value(&mut self) -> Box<JSONValue> {
+        let mut ret_val = JSONValue {
+            ..Default::default()
+        };
+        self.consume_white_space();
+        let ch = self.data.chars().nth(self.curr_pos).unwrap();
+
+        if self.is_digit(&ch.to_string()) {
+            ret_val.str_value = Cow::Owned(self.parse_number());
+            ret_val.jtype = JType::JNumber;
+        } else if ch == '{' {
+            todo!();
+        } else {
+            println!("Error {}", ch);
+        }
+
+        Box::new(ret_val)
+    }
+
     fn parse_qouted_string(&mut self) -> String {
         self.consume_white_space();
         let mut iter = self.data.char_indices();
@@ -64,8 +115,42 @@ impl<'a> Parser for ParserData<'a> {
         return "".to_string();
     }
 
+    fn parse_number(&mut self) -> String {
+        self.consume_white_space();
+        let iter = self.data.char_indices();
+        let mut end_pos: usize = 0;
+        let mut found = false;
+
+        for elem in iter {
+            let tmp = elem.1;
+            //println!("=>{}",tmp);
+            if !tmp.is_numeric() && tmp != '-' && tmp != '.' {
+                end_pos = elem.0;
+                found = true;
+            }
+        }
+
+        //println!(" start pos = {}",self.curr_pos);
+        if found {
+            let ret_val = self.data[self.curr_pos..end_pos].to_string();
+            self.curr_pos += end_pos;
+            return ret_val;
+        }
+        return "".to_string();
+    }
+
+    fn peek(&self, token: &str, ahead: usize) -> bool {
+        if self.data.chars().nth(self.curr_pos + ahead).unwrap() == token.chars().nth(0).unwrap() {
+            true
+        } else {
+            false
+        }
+    }
+
     fn consume_white_space(&mut self) {
-        for elem in self.data.chars().enumerate() {
+        let iter = self.data.char_indices().skip(self.curr_pos);
+
+        for elem in iter {
             //println!("{} |{}|", self.curr_pos, elem.1);
             if elem.1 != ' ' && elem.1 != '\n' && elem.1 != '\t' && elem.1 != '\r' {
                 break;
@@ -105,36 +190,6 @@ impl<'a> Parser for ParserData<'a> {
             }
         }
         false
-    }
-
-    fn parse_number(&mut self) -> String {
-        self.consume_white_space();
-        let iter = self.data.char_indices();
-        let mut end_pos: usize = 0;
-        let mut found = false;
-
-        for elem in iter {
-            let tmp = elem.1;
-            if !tmp.is_numeric() && tmp != '-' && tmp != '.' {
-                end_pos = elem.0;
-                found = true;
-            }
-        }
-
-        if found {
-            let ret_val = self.data[self.curr_pos..end_pos].to_string();
-            self.curr_pos += end_pos;
-            return ret_val;
-        }
-        return "".to_string();
-    }
-
-    fn parse_array<'b>(&mut self) -> JSONValue<'b> {
-        let ret_val = JSONValue {
-            ..Default::default()
-        };
-
-        return ret_val;
     }
 }
 
@@ -211,6 +266,19 @@ mod tests {
         let ans = uat.parse_number();
 
         assert_eq!("123.45", ans);
+    }
+
+    #[test]
+    fn parse_value_test() {
+        println!("Start test value");
+        let mut uat = ParserData {
+            data: " 123.45 ",
+            curr_pos: 0,
+        };
+
+        let ans = uat.parse_value();
+
+        assert_eq!("123.45", (*ans).str_value);
     }
 }
 
