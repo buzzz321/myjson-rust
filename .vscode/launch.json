@@ -8,12 +8,16 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "enter program name, for example ${workspaceFolder}/target/debug/deps/myjson.exe",
+            "program": "enter program name, for example ${workspaceFolder}/target/myjson/deps",
+            "windows": {
+                "program": "${workspaceFolder}/target/debug/deps/myjson-73779ba2e10a10b2.exe"
+              },
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "console": "externalTerminal"
+      
         }
     ]
 }
