@@ -80,6 +80,9 @@ impl<'a> Parser for ParserData<'a> {
         if self.is_digit() {
             ret_val.str_value = self.parse_number();
             ret_val.jtype = JType::JNumber;
+        } else if ch == "\"" {
+            ret_val.str_value = self.parse_qouted_string();
+            ret_val.jtype = JType::JString;
         } else if ch == "{" {
             return None;
         } else {
@@ -118,7 +121,7 @@ impl<'a> Parser for ParserData<'a> {
 
         if end_found {
             let ret_val = self.data[self.curr_pos..end_pos].to_string();
-            self.curr_pos += end_pos;
+            self.curr_pos = end_pos + 1;
             return ret_val;
         }
         return "".to_string();
@@ -314,6 +317,23 @@ mod tests {
             Some(v) => {
                 assert_eq!("1", v.arr[0].str_value);
                 assert_eq!("-6", v.arr[5].str_value);
+            }
+            None => {
+                assert!(false)
+            }
+        }
+    }
+    #[test]
+    fn parse_array_of_strings_test() {
+        let mut uat = ParserData {
+            data: "\"arr\": [\"1, 2, 3\", \"4, 5, -6\"]",
+            curr_pos: 0,
+        };
+        let ans = uat.parse_array();
+        match ans {
+            Some(v) => {
+                assert_eq!(r##"1, 2, 3"##, v.arr[0].str_value);
+                assert_eq!(r##"4, 5, -6"##, v.arr[1].str_value);
             }
             None => {
                 assert!(false)
