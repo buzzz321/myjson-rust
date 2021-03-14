@@ -99,14 +99,20 @@ impl<'a> Parser for ParserData<'a> {
             return "".to_string();
         }
         let mut end_found = false;
+        let mut escape = false;
         let mut end_pos: usize = 0;
         self.curr_pos += 1;
 
         for elem in iter {
-            if elem.1 == '"' {
+            if elem.1 == '\\' {
+                escape = true;
+            }
+            if elem.1 == '"' && !escape {
                 end_found = true;
                 end_pos = elem.0;
                 break;
+            } else if escape {
+                escape = false; //close the escape after we check for quote
             }
         }
 
@@ -249,6 +255,18 @@ mod tests {
         assert_eq!(true, uat.is_digit());
         uat.data = "-9.01";
         assert_eq!(true, uat.is_digit());
+    }
+
+    #[test]
+    fn parse_quoted_string_test() {
+        let mut uat = ParserData {
+            data: "\"key:\"",
+            curr_pos: 0,
+        };
+
+        let ans = uat.parse_qouted_string();
+
+        assert_eq!(r##"key:"##, ans);
     }
 
     #[test]
