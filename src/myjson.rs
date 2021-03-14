@@ -30,7 +30,7 @@ trait Parser {
     fn consume_white_space(&mut self);
     fn consume(&mut self, token: &str) -> bool;
     fn get_data(&self) -> &str;
-    fn is_digit(&self, val: &str) -> bool;
+    fn is_digit(&self) -> bool;
 }
 
 #[derive(Debug, Default, Clone)]
@@ -77,7 +77,7 @@ impl<'a> Parser for ParserData<'a> {
         };
         self.consume_white_space();
         let ch = self.data[self.curr_pos..self.curr_pos + 1].borrow();
-        if self.is_digit(&ch.to_string()) {
+        if self.is_digit() {
             ret_val.str_value = self.parse_number();
             ret_val.jtype = JType::JNumber;
         } else if ch == "{" {
@@ -177,11 +177,10 @@ impl<'a> Parser for ParserData<'a> {
         &self.data[self.curr_pos..self.curr_pos + 1]
     }
 
-    // atm we dont use val since negative numbers mess up is digit test..
-    fn is_digit(&self, _val: &str) -> bool {
+    fn is_digit(&self) -> bool {
         let iter = self.data.char_indices().skip(self.curr_pos).peekable();
         for elem in iter {
-            if elem.1 == '-' {
+            if elem.1 == '-' || elem.1 == '.' {
                 continue;
             }
             let isnum = elem.1 as i32 - '0' as i32;
@@ -236,15 +235,20 @@ mod tests {
 
     #[test]
     fn is_digits() {
-        let uat = ParserData {
+        let mut uat = ParserData {
             data: "0",
             curr_pos: 0,
         };
 
-        assert_eq!(true, uat.is_digit("0"));
-        assert_eq!(true, uat.is_digit("9"));
-        assert_eq!(false, uat.is_digit("a"));
-        assert_eq!(true, uat.is_digit("-9"));
+        assert_eq!(true, uat.is_digit());
+        uat.data = "9";
+        assert_eq!(true, uat.is_digit());
+        uat.data = "a";
+        assert_eq!(false, uat.is_digit());
+        uat.data = "-9";
+        assert_eq!(true, uat.is_digit());
+        uat.data = "-9.01";
+        assert_eq!(true, uat.is_digit());
     }
 
     #[test]
@@ -284,13 +288,14 @@ mod tests {
     #[test]
     fn parse_array_test() {
         let mut uat = ParserData {
-            data: "\"arr\": [1, 2, 3, 4, 5, 6]",
+            data: "\"arr\": [1, 2, 3, 4, 5, -6]",
             curr_pos: 0,
         };
         let ans = uat.parse_array();
         match ans {
             Some(v) => {
                 assert_eq!("1", v.arr[0].str_value);
+                assert_eq!("-6", v.arr[5].str_value);
             }
             None => {
                 assert!(false)
