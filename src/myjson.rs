@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 #[derive(Debug, Clone)]
 pub enum JType {
     JString,
@@ -21,7 +23,7 @@ pub struct JSONValue {
 }
 trait Parser {
     fn parse_array(&mut self) -> Option<JSONValue>;
-    fn parse_value(&mut self) -> Box<JSONValue>;
+    fn parse_value(&mut self) -> Option<JSONValue>;
     fn parse_qouted_string(&mut self) -> String;
     fn parse_number(&mut self) -> String;
     fn peek(&mut self, token: &str, ahead: usize) -> bool;
@@ -37,7 +39,6 @@ pub struct ParserData<'a> {
     curr_pos: usize,
 }
 
-
 impl<'a> Parser for ParserData<'a> {
     fn parse_array(&mut self) -> Option<JSONValue> {
         /*
@@ -46,46 +47,47 @@ impl<'a> Parser for ParserData<'a> {
         let mut ret_val = JSONValue {
             ..Default::default()
         };
-    
+
         ret_val.jtype = JType::JArray;
         self.consume_white_space();
         ret_val.str_key = self.parse_qouted_string();
         self.consume_white_space();
         self.consume(":");
         self.consume_white_space();
-    
+
         if !self.consume("[") {
             return None;
         }
-    
-        self.consume_white_space();
-    
+
         let mut tmp = Vec::<Box<JSONValue>>::new();
-       
-        while ! self.peek("]", 0) {
-           let ans = self.parse_value();
-           tmp.push(ans);          
+
+        while !self.peek("]", 0) {
+            self.consume_white_space();
+            let ans = self.parse_value()?;
+            tmp.push(Box::new(ans));
+            self.consume_white_space();
+            self.consume(",");
         }
         ret_val.arr = tmp;
         Some(ret_val)
     }
-    fn parse_value(&mut self) -> Box<JSONValue> {
+    fn parse_value(&mut self) -> Option<JSONValue> {
         let mut ret_val = JSONValue {
             ..Default::default()
         };
         self.consume_white_space();
-        let ch: char = self.data.chars().nth(self.curr_pos).unwrap();
-
+        let ch = self.data[self.curr_pos..self.curr_pos + 1].borrow();
         if self.is_digit(&ch.to_string()) {
             ret_val.str_value = self.parse_number();
             ret_val.jtype = JType::JNumber;
-        } else if ch == '{' {
-            todo!();
+        } else if ch == "{" {
+            return None;
         } else {
-            println!("Error {}", ch);
+            println!("Error {}", ch.to_string());
+            return None;
         }
 
-        Box::new(ret_val)
+        Some(ret_val)
     }
 
     fn parse_qouted_string(&mut self) -> String {
@@ -101,7 +103,6 @@ impl<'a> Parser for ParserData<'a> {
         self.curr_pos += 1;
 
         for elem in iter {
-            //println!("{}", elem.1);
             if elem.1 == '"' {
                 end_found = true;
                 end_pos = elem.0;
@@ -125,17 +126,16 @@ impl<'a> Parser for ParserData<'a> {
 
         for elem in iter {
             let tmp = elem.1;
-            //println!("=>{}",tmp);
-            if !tmp.is_numeric() && tmp != '-' && tmp != '.' {
+            if (!tmp.is_numeric() && tmp != '-' && tmp != '.') || tmp == ' ' {
                 end_pos = elem.0;
                 found = true;
+                break;
             }
         }
 
-        //println!(" start pos = {}",self.curr_pos);
         if found {
             let ret_val = self.data[self.curr_pos..end_pos].to_string();
-            self.curr_pos += end_pos;
+            self.curr_pos += end_pos - self.curr_pos;
             return ret_val;
         }
         return "".to_string();
@@ -153,7 +153,6 @@ impl<'a> Parser for ParserData<'a> {
         let iter = self.data.char_indices().skip(self.curr_pos);
 
         for elem in iter {
-            //println!("{} |{}|", self.curr_pos, elem.1);
             if elem.1 != ' ' && elem.1 != '\n' && elem.1 != '\t' && elem.1 != '\r' {
                 break;
             }
@@ -175,12 +174,13 @@ impl<'a> Parser for ParserData<'a> {
     }
 
     fn get_data(&self) -> &str {
-        //println!("{} ", self.curr_pos);
         &self.data[self.curr_pos..self.curr_pos + 1]
     }
 
-    fn is_digit(&self, val: &str) -> bool {
-        for elem in val.char_indices().skip(self.curr_pos) {
+    // atm we dont use val since negative numbers mess up is digit test..
+    fn is_digit(&self, _val: &str) -> bool {
+        let iter = self.data.char_indices().skip(self.curr_pos).peekable();
+        for elem in iter {
             if elem.1 == '-' {
                 continue;
             }
@@ -272,7 +272,6 @@ mod tests {
 
     #[test]
     fn parse_value_test() {
-        println!("Start test value");
         let mut uat = ParserData {
             data: " 123.45 ",
             curr_pos: 0,
@@ -280,17 +279,16 @@ mod tests {
 
         let ans = uat.parse_value();
 
-        assert_eq!("123.45", (*ans).str_value);
+        assert_eq!("123.45", ans.unwrap().str_value);
     }
     #[test]
     fn parse_array_test() {
-        println!("Start test value");
         let mut uat = ParserData {
-            data: "\"arr\": [1 2 3 4 5 6]",
+            data: "\"arr\": [1, 2, 3, 4, 5, 6]",
             curr_pos: 0,
         };
         let ans = uat.parse_array();
-        match ans{
+        match ans {
             Some(v) => {
                 assert_eq!("1", v.arr[0].str_value);
             }
@@ -298,7 +296,6 @@ mod tests {
                 assert!(false)
             }
         }
-        
     }
 }
 
