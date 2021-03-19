@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, collections::HashMap};
 
 #[derive(Debug, Clone)]
 pub enum JType {
@@ -17,14 +17,15 @@ impl Default for JType {
 #[derive(Debug, Default, Clone)]
 pub struct JSONValue {
     pub jtype: JType,
-    pub str_key: String,
     pub str_value: String,
     pub arr: Vec<Box<JSONValue>>,
+    pub object: HashMap<String, JSONValue>,
 }
 trait Parser {
     fn parse_array(&mut self) -> Option<JSONValue>;
     fn parse_value(&mut self) -> Option<JSONValue>;
     fn parse_qouted_string(&mut self) -> String;
+    fn parse_object(&mut self) -> Option<JSONValue>;
     fn parse_number(&mut self) -> String;
     fn peek(&mut self, token: &str, ahead: usize) -> bool;
     fn consume_white_space(&mut self);
@@ -50,7 +51,7 @@ impl<'a> Parser for ParserData<'a> {
 
         ret_val.jtype = JType::JArray;
         self.consume_white_space();
-        ret_val.str_key = self.parse_qouted_string();
+        ret_val.str_value = self.parse_qouted_string();
         self.consume_white_space();
         self.consume(":");
         self.consume_white_space();
@@ -68,6 +69,7 @@ impl<'a> Parser for ParserData<'a> {
             self.consume_white_space();
             self.consume(",");
         }
+        self.curr_pos += 1;
         ret_val.arr = tmp;
         Some(ret_val)
     }
@@ -84,7 +86,12 @@ impl<'a> Parser for ParserData<'a> {
             ret_val.str_value = self.parse_qouted_string();
             ret_val.jtype = JType::JString;
         } else if ch == "{" {
-            return None;
+            //ret_val.arr.push(Box::new(self.parse_object()?));
+            ret_val = self.parse_object().unwrap();
+            ret_val.jtype = JType::JObject;
+        } else if ch == "[" {
+            ret_val.arr.push(Box::new(self.parse_array()?));
+            ret_val.jtype = JType::JArray;
         } else {
             println!("Error {}", ch.to_string());
             return None;
@@ -92,7 +99,6 @@ impl<'a> Parser for ParserData<'a> {
 
         Some(ret_val)
     }
-
     fn parse_qouted_string(&mut self) -> String {
         self.consume_white_space();
         let mut iter = self.data.char_indices().skip(self.curr_pos);
@@ -125,6 +131,41 @@ impl<'a> Parser for ParserData<'a> {
             return ret_val;
         }
         return "".to_string();
+    }
+
+    fn parse_object(&mut self) -> Option<JSONValue> {
+        let mut ret_val = JSONValue {
+            ..Default::default()
+        };
+
+        let mut counter: usize = 0;
+        while counter < 1000000 {
+            // we only allow 1000000 nested objects..
+            self.consume_white_space();
+
+            if self.consume("}") {
+                return Some(ret_val);
+            }
+
+            if !self.consume("{") {
+                return None;
+            }
+            self.consume_white_space();
+
+            ret_val.jtype = JType::JObject;
+            let key = self.parse_qouted_string();
+            self.consume_white_space();
+            self.consume(":");
+            self.consume_white_space();
+            let ans = self.parse_value()?;
+
+            //ans.str_value = ans.str_value;
+            //ret_val.arr.push(Box::new(ans));
+            ret_val.object.insert(key, ans);
+            counter += 1;
+        }
+
+        Some(ret_val)
     }
 
     fn parse_number(&mut self) -> String {
@@ -334,6 +375,26 @@ mod tests {
             Some(v) => {
                 assert_eq!(r##"1, 2, 3"##, v.arr[0].str_value);
                 assert_eq!(r##"4, 5, -6"##, v.arr[1].str_value);
+            }
+            None => {
+                assert!(false)
+            }
+        }
+    }
+
+    #[test]
+    fn parse_object_test() {
+        let mut uat = ParserData {
+            data: " {\"plura\": [1,2,3,4,5,6] }",
+            curr_pos: 0,
+        };
+        let ans = uat.parse_value();
+        match ans {
+            Some(v) => {
+                //println!("{:?}", v);
+                assert_eq!("plura", v.object.keys().next().unwrap().to_string());
+                // let val = *(v.arr[0]).clone();
+                //assert_eq!(r##"1"##, *(val.arr[0]));
             }
             None => {
                 assert!(false)

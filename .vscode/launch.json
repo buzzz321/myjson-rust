@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "enter program name, for example ${workspaceFolder}/target/myjson/deps",
             "windows": {
-                "program": "${workspaceFolder}/target/debug/deps/myjson-73779ba2e10a10b2.exe"
+                "program": "${workspaceFolder}/target/debug/deps/myjson-e040049fad3660b7.exe"
               },
             "args": [],
             "stopAtEntry": false,
