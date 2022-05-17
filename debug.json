@@ -1,0 +1,32 @@
+{ jtype: JObject, str_key: "", str_value: "", arr: [JSONValue
+        { jtype: JObject, str_key: "", str_value: "", arr: [JSONValue 
+            { jtype: JArray, str_key: "plura", str_value: "", arr: [JSONValue 
+                { jtype: JArray, str_key: "", str_value: "", arr: [JSONValue 
+                    { jtype: JNumber, str_key: "", str_value: "1", arr: [] }, JSONValue 
+                    { jtype: JNumber, str_key: "", str_value: "2", arr: [] }, JSONValue 
+                    { jtype: JNumber, str_key: "", str_value: "3", arr: [] }, JSONValue 
+                    { jtype: JNumber, str_key: "", str_value: "4", arr: [] }, JSONValue 
+                    { jtype: JNumber, str_key: "", str_value: "5", arr: [] }, JSONValue 
+                    { jtype: JNumber, str_key: "", str_value: "6", arr: [] }] }] }] }] }
+
+JSONValue { jtype: JObject, str_key: "", str_value: "", arr: [JSONValue 
+    { jtype: JArray, str_key: "plura", str_value: "", arr: [JSONValue 
+        { jtype: JArray, str_key: "", str_value: "", arr: [JSONValue 
+            { jtype: JNumber, str_key: "", str_value: "1", arr: [] }, JSONValue 
+            { jtype: JNumber, str_key: "", str_value: "2", arr: [] }, JSONValue 
+            { jtype: JNumber, str_key: "", str_value: "3", arr: [] }, JSONValue 
+            { jtype: JNumber, str_key: "", str_value: "4", arr: [] }, JSONValue 
+            { jtype: JNumber, str_key: "", str_value: "5", arr: [] }, JSONValue 
+            { jtype: JNumber, str_key: "", str_value: "6", arr: [] }] }] }] }
+
+JSONValue { jtype: JObject, str_value: "", arr: [], object: 
+    {"plura": JSONValue 
+        { jtype: JArray, str_value: "", arr: [JSONValue 
+            { jtype: JArray, str_value: "", arr: [JSONValue 
+                { jtype: JNumber, str_value: "1", arr: [], object: {} }, JSONValue 
+                { jtype: JNumber, str_value: "2", arr: [], object: {} }, JSONValue 
+                { jtype: JNumber, str_value: "3", arr: [], object: {} }, JSONValue 
+                { jtype: JNumber, str_value: "4", arr: [], object: {} }, JSONValue 
+                { jtype: JNumber, str_value: "5", arr: [], object: {} }, JSONValue 
+                { jtype: JNumber, str_value: "6", arr: [], object: {} }], object: {} }], object: {} }} }
+

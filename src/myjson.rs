@@ -221,7 +221,6 @@ impl<'a> Parser for ParserData<'a> {
             ret_val.str_value = self.parse_qouted_string();
             ret_val.jtype = JType::JString;
         } else if ch == "{" {
-            //ret_val.arr.push(Box::new(self.parse_object()?));
             ret_val = self.parse_object().unwrap();
             ret_val.jtype = JType::JObject;
         } else if ch == "[" {
