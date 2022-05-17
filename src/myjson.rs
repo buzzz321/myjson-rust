@@ -21,26 +21,67 @@ pub struct JSONValue {
     pub arr: Vec<Box<JSONValue>>,
     pub object: HashMap<String, JSONValue>,
 }
-trait Parser {
-    fn parse_array(&mut self) -> Option<JSONValue>;
-    fn parse_value(&mut self) -> Option<JSONValue>;
-    fn parse_qouted_string(&mut self) -> String;
-    fn parse_object(&mut self) -> Option<JSONValue>;
-    fn parse_number(&mut self) -> String;
-    fn peek(&mut self, token: &str, ahead: usize) -> bool;
-    fn consume_white_space(&mut self);
+pub trait Parser {
     fn consume(&mut self, token: &str) -> bool;
+    fn consume_white_space(&mut self);
     fn get_data(&self) -> &str;
     fn is_digit(&self) -> bool;
+    fn parse_array(&mut self) -> Option<JSONValue>;
+    fn parse_number(&mut self) -> String;
+    fn parse_object(&mut self) -> Option<JSONValue>;
+    fn parse_qouted_string(&mut self) -> String;
+    fn parse_value(&mut self) -> Option<JSONValue>;
+    fn peek(&mut self, token: &str, ahead: usize) -> bool;
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct ParserData<'a> {
-    data: &'a str,
-    curr_pos: usize,
+    pub data: &'a str,
+    pub curr_pos: usize,
 }
 
 impl<'a> Parser for ParserData<'a> {
+    fn consume(&mut self, token: &str) -> bool {
+        if token.chars().nth(0).unwrap() != self.data.chars().nth(self.curr_pos).unwrap() {
+            return false;
+        }
+        self.curr_pos += token.len();
+
+        if self.curr_pos > self.data.len() {
+            self.curr_pos = self.data.len() - 1;
+        }
+
+        return true;
+    }
+    fn consume_white_space(&mut self) {
+        let iter = self.data.char_indices().skip(self.curr_pos);
+
+        for elem in iter {
+            if elem.1 != ' ' && elem.1 != '\n' && elem.1 != '\t' && elem.1 != '\r' {
+                break;
+            }
+            self.curr_pos += 1;
+        }
+    }
+    fn get_data(&self) -> &str {
+        &self.data[self.curr_pos..self.curr_pos + 1]
+    }
+    fn is_digit(&self) -> bool {
+        let iter = self.data.char_indices().skip(self.curr_pos).peekable();
+        for elem in iter {
+            if elem.1 == '-' || elem.1 == '.' {
+                continue;
+            }
+            let isnum = elem.1 as i32 - '0' as i32;
+            if isnum <= 9 && isnum >= 0 {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        false
+    }
+
     fn parse_array(&mut self) -> Option<JSONValue> {
         /*
         "key" : [1, 2 , 3, 4]
@@ -73,32 +114,66 @@ impl<'a> Parser for ParserData<'a> {
         ret_val.arr = tmp;
         Some(ret_val)
     }
-    fn parse_value(&mut self) -> Option<JSONValue> {
+
+    fn parse_number(&mut self) -> String {
+        self.consume_white_space();
+        let iter = self.data.char_indices().skip(self.curr_pos);
+        let mut end_pos: usize = 0;
+        let mut found = false;
+
+        for elem in iter {
+            let tmp = elem.1;
+            if (!tmp.is_numeric() && tmp != '-' && tmp != '.') || tmp == ' ' {
+                end_pos = elem.0;
+                found = true;
+                break;
+            }
+        }
+
+        if found {
+            let ret_val = self.data[self.curr_pos..end_pos].to_string();
+            self.curr_pos += end_pos - self.curr_pos;
+            return ret_val;
+        }
+        return "".to_string();
+    }
+
+    fn parse_object(&mut self) -> Option<JSONValue> {
         let mut ret_val = JSONValue {
             ..Default::default()
         };
-        self.consume_white_space();
-        let ch = self.data[self.curr_pos..self.curr_pos + 1].borrow();
-        if self.is_digit() {
-            ret_val.str_value = self.parse_number();
-            ret_val.jtype = JType::JNumber;
-        } else if ch == "\"" {
-            ret_val.str_value = self.parse_qouted_string();
-            ret_val.jtype = JType::JString;
-        } else if ch == "{" {
-            //ret_val.arr.push(Box::new(self.parse_object()?));
-            ret_val = self.parse_object().unwrap();
+
+        loop {
+            // we only allow 1000000 nested objects..
+            self.consume_white_space();
+            if !self.consume("{") {
+                break; // no start so bail out
+            }
+
+            if self.consume("}") {
+                break;
+            }
+
+            self.consume_white_space();
+
             ret_val.jtype = JType::JObject;
-        } else if ch == "[" {
-            ret_val.arr.push(Box::new(self.parse_array()?));
-            ret_val.jtype = JType::JArray;
-        } else {
-            println!("Error {}", ch.to_string());
-            return None;
+            let key = self.parse_qouted_string();
+            self.consume_white_space();
+            self.consume(":");
+            self.consume_white_space();
+            let ans = self.parse_value()?;
+
+            ret_val.object.insert(key, ans);
+            self.consume_white_space();
+
+            if !self.consume(",") {
+                break;
+            }
         }
 
         Some(ret_val)
     }
+
     fn parse_qouted_string(&mut self) -> String {
         self.consume_white_space();
         let mut iter = self.data.char_indices().skip(self.curr_pos);
@@ -133,62 +208,31 @@ impl<'a> Parser for ParserData<'a> {
         return "".to_string();
     }
 
-    fn parse_object(&mut self) -> Option<JSONValue> {
+    fn parse_value(&mut self) -> Option<JSONValue> {
         let mut ret_val = JSONValue {
             ..Default::default()
         };
-
-        let mut counter: usize = 0;
-        while counter < 1000000 {
-            // we only allow 1000000 nested objects..
-            self.consume_white_space();
-
-            if self.consume("}") {
-                return Some(ret_val);
-            }
-
-            if !self.consume("{") {
-                return None;
-            }
-            self.consume_white_space();
-
+        self.consume_white_space();
+        let ch = self.data[self.curr_pos..self.curr_pos + 1].borrow();
+        if self.is_digit() {
+            ret_val.str_value = self.parse_number();
+            ret_val.jtype = JType::JNumber;
+        } else if ch == "\"" {
+            ret_val.str_value = self.parse_qouted_string();
+            ret_val.jtype = JType::JString;
+        } else if ch == "{" {
+            //ret_val.arr.push(Box::new(self.parse_object()?));
+            ret_val = self.parse_object().unwrap();
             ret_val.jtype = JType::JObject;
-            let key = self.parse_qouted_string();
-            self.consume_white_space();
-            self.consume(":");
-            self.consume_white_space();
-            let ans = self.parse_value()?;
-
-            //ans.str_value = ans.str_value;
-            //ret_val.arr.push(Box::new(ans));
-            ret_val.object.insert(key, ans);
-            counter += 1;
+        } else if ch == "[" {
+            ret_val.arr.push(Box::new(self.parse_array()?));
+            ret_val.jtype = JType::JArray;
+        } else {
+            println!("Error {}", ch.to_string());
+            return None;
         }
 
         Some(ret_val)
-    }
-
-    fn parse_number(&mut self) -> String {
-        self.consume_white_space();
-        let iter = self.data.char_indices().skip(self.curr_pos);
-        let mut end_pos: usize = 0;
-        let mut found = false;
-
-        for elem in iter {
-            let tmp = elem.1;
-            if (!tmp.is_numeric() && tmp != '-' && tmp != '.') || tmp == ' ' {
-                end_pos = elem.0;
-                found = true;
-                break;
-            }
-        }
-
-        if found {
-            let ret_val = self.data[self.curr_pos..end_pos].to_string();
-            self.curr_pos += end_pos - self.curr_pos;
-            return ret_val;
-        }
-        return "".to_string();
     }
 
     fn peek(&mut self, token: &str, ahead: usize) -> bool {
@@ -197,50 +241,6 @@ impl<'a> Parser for ParserData<'a> {
         } else {
             false
         }
-    }
-
-    fn consume_white_space(&mut self) {
-        let iter = self.data.char_indices().skip(self.curr_pos);
-
-        for elem in iter {
-            if elem.1 != ' ' && elem.1 != '\n' && elem.1 != '\t' && elem.1 != '\r' {
-                break;
-            }
-            self.curr_pos += 1;
-        }
-    }
-
-    fn consume(&mut self, token: &str) -> bool {
-        if token.chars().nth(0).unwrap() != self.data.chars().nth(self.curr_pos).unwrap() {
-            return false;
-        }
-        self.curr_pos += token.len();
-
-        if self.curr_pos > self.data.len() {
-            self.curr_pos = self.data.len() - 1;
-        }
-
-        return true;
-    }
-
-    fn get_data(&self) -> &str {
-        &self.data[self.curr_pos..self.curr_pos + 1]
-    }
-
-    fn is_digit(&self) -> bool {
-        let iter = self.data.char_indices().skip(self.curr_pos).peekable();
-        for elem in iter {
-            if elem.1 == '-' || elem.1 == '.' {
-                continue;
-            }
-            let isnum = elem.1 as i32 - '0' as i32;
-            if isnum <= 9 && isnum >= 0 {
-                return true;
-            } else {
-                return false;
-            }
-        }
-        false
     }
 }
 
@@ -388,7 +388,7 @@ mod tests {
             data: " {\"plura\": [1,2,3,4,5,6] }",
             curr_pos: 0,
         };
-        let ans = uat.parse_value();
+        let ans: Option<JSONValue> = uat.parse_value();
         match ans {
             Some(v) => {
                 //println!("{:?}", v);
@@ -401,8 +401,23 @@ mod tests {
             }
         }
     }
-}
-
-pub fn hello() {
-    println!("hello from myjson");
+    #[test]
+    fn parse_objects_test() {
+        let mut uat = ParserData {
+            data: " {\"plura\": [1,2,3,4,5,6], \"mupp\": \"2-4\" }",
+            curr_pos: 0,
+        };
+        let ans: Option<JSONValue> = uat.parse_value();
+        match ans {
+            Some(v) => {
+                //println!("{:?}", v);
+                assert_eq!("plura", v.object.keys().next().unwrap().to_string());
+                // let val = *(v.arr[0]).clone();
+                //assert_eq!(r##"1"##, *(val.arr[0]));
+            }
+            None => {
+                assert!(false)
+            }
+        }
+    }
 }
